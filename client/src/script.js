@@ -37,9 +37,9 @@ function updateUniforms() {
     }
 }
 
-loader.load('20230503225234.obj', function (object) {
+loader.load('segment.obj', function (object) {
 
-    fetch('20230503225234.json')
+    fetch('segment.json')
         .then(response => response.json())
         .then(data => {
             const center = new THREE.Vector3().fromArray(data.center)
