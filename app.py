@@ -1,10 +1,29 @@
+import os
 import json
+import shutil
 import numpy as np
-
 from PIL import Image
 from sklearn.decomposition import PCA
 
+# Enter Volpkg & Segment_id info
+volpkg_name = 'example.volpkg'
 segment_id = '20230503225234'
+
+
+# You don't need to alter the file name below
+input_folder = f'{volpkg_name}/paths/{segment_id}/'
+obj_file = os.path.join(input_folder, f'{segment_id}.obj')
+tif_file = os.path.join(input_folder, f'{segment_id}.tif')
+
+output_folder = 'output'
+obj_copy_file = os.path.join(output_folder, 'segment.obj')
+png_file = os.path.join(output_folder, 'segment.png')
+json_file = os.path.join(output_folder, 'segment.json')
+
+client_folder = 'client/static'
+
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
 
 def parse_obj(filename):
     vertices = []
@@ -69,8 +88,8 @@ def calc_metric(vertices, normals, totoal_area):
     eigenvalues = np.round(eigenvalues, decimals=5)
     eigenvectors = np.round(eigenvectors, decimals=5)
 
-    tif_img = Image.open(f'{segment_id}.tif')
-    tif_img.save(f'{segment_id}.png', 'png')
+    tif_img = Image.open(tif_file)
+    tif_img.save(png_file, 'png')
 
     data = {
         'area': totoal_area,
@@ -81,13 +100,20 @@ def calc_metric(vertices, normals, totoal_area):
         'eigenvectors': eigenvectors.tolist(),
     }
 
-    with open(f'{segment_id}.json', "w") as f:
+    with open(json_file, "w") as f:
         json.dump(data, f)
 
     return data
 
-vertices, normals, uvs, faces = parse_obj(f'{segment_id}.obj')
+vertices, normals, uvs, faces = parse_obj(obj_file)
 total_area = calc_area(vertices, faces)
 data = calc_metric(vertices, normals, total_area)
+
+# Copy the generated files to the client folder
+shutil.copy(obj_file , obj_copy_file)
+shutil.copy(png_file , client_folder)
+shutil.copy(json_file , client_folder)
+shutil.copy(obj_copy_file , client_folder)
+
 
 
