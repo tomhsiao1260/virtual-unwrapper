@@ -25,8 +25,8 @@ cd client && npm install
 
 In root folder, put your `.volpkg` folder and then enter the corresponding info in `app.py`
 ```python
-volpkg_name = 'example.volpkg'
-segment_id = '20230503225234'
+volpkg_name = 'example.volpkg' # volpkg folder path
+segment_id = '20230503225234'  # your segment id
 ```
 
 Run `app.py`

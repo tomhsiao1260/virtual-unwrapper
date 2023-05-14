@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 
 # Enter Volpkg & Segment_id info
 volpkg_name = 'example.volpkg'
-segment_id = '20230503225234'
+segment_id = '20230505141722'
 
 
 # You don't need to alter the file name below
@@ -19,8 +19,6 @@ output_folder = 'output'
 obj_copy_file = os.path.join(output_folder, 'segment.obj')
 png_file = os.path.join(output_folder, 'segment.png')
 json_file = os.path.join(output_folder, 'segment.json')
-
-client_folder = 'client/static'
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
@@ -66,6 +64,15 @@ def calc_metric(vertices, normals, totoal_area):
     mean_vertices = np.mean(vertices, axis=0)
     mean_normals = np.mean(normals, axis=0)
 
+    # Save texture image
+    tif_img = Image.open(tif_file)
+    tif_img.save(png_file, 'png')
+
+    # Calculate bounding box
+    distances = np.linalg.norm(vertices - mean_vertices, axis=1)
+    farthest_vertex = vertices[np.argmax(distances)]
+    bounding_box = farthest_vertex - mean_vertices
+
     # Construct an orthonormal basis for the plane
     e = np.array([1, 0, 0])
     u = np.cross(mean_normals, e)
@@ -74,30 +81,27 @@ def calc_metric(vertices, normals, totoal_area):
     v /= np.linalg.norm(v)
     A = np.column_stack((u, v))
 
-    projected = vertices.dot(A)
-    pca = PCA(n_components=2)
-    pca.fit(projected)
+    # projected = vertices.dot(A)
+    # pca = PCA(n_components=2)
+    # pca.fit(projected)
 
-    eigenvalues = pca.explained_variance_
-    eigenvectors = pca.components_
-    eigenvectors = np.dot(eigenvectors, A.T)
+    # basevectors = pca.components_
+    # basevectors = np.dot(eigenvectors, A.T)
+    basevectors = A.T
 
     totoal_area = np.round(totoal_area, decimals=5)
     mean_vertices = np.round(mean_vertices, decimals=5)
     mean_normals = np.round(mean_normals, decimals=5)
-    eigenvalues = np.round(eigenvalues, decimals=5)
-    eigenvectors = np.round(eigenvectors, decimals=5)
-
-    tif_img = Image.open(tif_file)
-    tif_img.save(png_file, 'png')
+    bounding_box = np.round(bounding_box, decimals=5)
+    basevectors = np.round(basevectors, decimals=5)
 
     data = {
         'area': totoal_area,
         'tifsize': tif_img.size,
         'center': mean_vertices.tolist(),
         'normal': mean_normals.tolist(),
-        'eigenvalues': eigenvalues.tolist(),
-        'eigenvectors': eigenvectors.tolist(),
+        'boundingbox': bounding_box.tolist(),
+        'basevectors': basevectors.tolist(),
     }
 
     with open(json_file, "w") as f:
@@ -111,9 +115,8 @@ data = calc_metric(vertices, normals, total_area)
 
 # Copy the generated files to the client folder
 shutil.copy(obj_file , obj_copy_file)
-shutil.copy(png_file , client_folder)
-shutil.copy(json_file , client_folder)
-shutil.copy(obj_copy_file , client_folder)
-
+shutil.copy(json_file , 'client/src')
+shutil.copy(png_file , 'client/static')
+shutil.copy(obj_copy_file , 'client/static')
 
 
