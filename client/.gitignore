@@ -3,5 +3,6 @@ node_modules
 dist
 public
 
-/static/*
-!/static/.gitkeep
+**/segment.json
+**/segment.png
+**/segment.obj
