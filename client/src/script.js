@@ -31,7 +31,7 @@ const parameters = {
 const gui = new GUI()
 gui.add(parameters, 'flatten').min(0).max(1).step(0.01).onChange(updateUniforms)
 gui.add(parameters, 'point').onChange(updateUniforms)
-gui.add(parameters, 'point_size').min(0).max(10).step(0.01).onChange(updateUniforms)
+gui.add(parameters, 'point_size').min(0).max(30).step(0.01).onChange(updateUniforms)
 gui.add(parameters, 'flip').onChange(updateUniforms)
 gui.add(parameters, 'adjust').min(0).max(1).step(0.01).onChange(updateUniforms)
 
