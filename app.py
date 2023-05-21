@@ -48,6 +48,22 @@ def parse_obj(filename):
 
     return vertices, normals, uvs, faces
 
+def save_obj(filename, vertices, normals, uvs, faces):
+    with open(filename, 'w') as f:
+
+        for i in range(len(vertices)):
+            vertex = vertices[i]
+            normal = normals[i]
+            f.write(f"v {' '.join(str(x) for x in vertex)}\n")
+            f.write(f"vn {' '.join(str(x) for x in normal)}\n")
+
+        for uv in uvs:
+            f.write(f"vt {' '.join(str(x) for x in uv)}\n")
+
+        for face in faces:
+            indices = ' '.join(f"{x+1}/{x+1}/{x+1}" for x in face)
+            f.write(f"f {indices}\n")
+
 def calc_area(vertices, faces):
     a = vertices[faces[:, 0], :]
     b = vertices[faces[:, 1], :]
@@ -108,6 +124,36 @@ def calc_metric(vertices, normals, totoal_area):
         json.dump(data, f)
 
     return data
+
+def processing(vertices, normals, uvs, faces):
+    # generate a new face on back side (haven't used yet)
+
+    # n_vertices = vertices - normals * 10
+    # n_normals = -normals
+    # n_uvs = uvs
+    # n_faces = np.flip(faces + len(vertices), axis=1)
+
+    # d_vertices = np.concatenate((vertices, n_vertices), axis=0)
+    # d_normals = np.concatenate((normals, n_normals), axis=0)
+    # d_uvs = np.concatenate((uvs, n_uvs), axis=0)
+    # d_faces = np.concatenate((faces, n_faces), axis=0)
+
+    d_vertices = vertices
+    d_normals = normals
+    d_uvs = uvs
+    d_faces = faces
+
+    # Calculate bounding box
+    mean_vertices = np.mean(vertices, axis=0)
+    distances = np.linalg.norm(vertices - mean_vertices, axis=1)
+    farthest_vertex = vertices[np.argmax(distances)]
+    bounding_box = farthest_vertex - mean_vertices
+
+    # translate & rescale
+    d_vertices = (d_vertices - mean_vertices) / np.amax(bounding_box)
+    d_vertices = np.around(d_vertices, decimals=5)
+
+    return d_vertices, d_normals, d_uvs, d_faces
 
 vertices, normals, uvs, faces = parse_obj(obj_file)
 total_area = calc_area(vertices, faces)
