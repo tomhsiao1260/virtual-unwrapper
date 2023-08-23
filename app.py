@@ -6,8 +6,10 @@ from PIL import Image
 from sklearn.decomposition import PCA
 
 # Enter Volpkg & Segment_id info
-volpkg_name = 'example.volpkg'
-segment_id = '20230503225234'
+volpkg_name = '../full-scrolls/Scroll1.volpkg'
+segment_id = '20230509182749'
+# segment_id = '20230504093154'
+# segment_id = '20230503225234'
 
 
 # You don't need to alter the file name below

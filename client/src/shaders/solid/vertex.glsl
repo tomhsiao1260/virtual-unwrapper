@@ -17,7 +17,7 @@ void main()
     float flip = uFlip ? -1.0 : 1.0;
     float r = uTifsize.y / uTifsize.x;
 
-    vec3 dir = (uv.x - 0.5) * uBasevectorX + (uv.y - 0.5) * uBasevectorY * r * flip;
+    vec3 dir = (0.5 - uv.x) * uBasevectorX + (0.5 - uv.y) * uBasevectorY * r * flip;
     vec3 flatten = uCenter + dir * sqrt(uArea / r);
 
     vec3 newPosition = position + (flatten - position) * uFlatten;

@@ -5,6 +5,7 @@ import data from './segment.json'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
+import maskFragmentShader from './shaders/mask/fragment.glsl'
 import solidVertexShader from './shaders/solid/vertex.glsl'
 import solidFragmentShader from './shaders/solid/fragment.glsl'
 import particlesVertexShader from './shaders/particles/vertex.glsl'
@@ -25,7 +26,7 @@ const parameters = {
     point: false,
     point_size: 5.0,
     flip: true,
-    adjust: 0.5,
+    adjust: 0.2,
 }
 
 const gui = new GUI()
@@ -94,6 +95,7 @@ scene.add(axes)
 const textureLoader = new THREE.TextureLoader()
 const segmentTexture = textureLoader.load('segment.png')
 const spotTexture = textureLoader.load('spot.png')
+const maskTexture = textureLoader.load('mask.png')
 
 const particlesMaterial = new THREE.ShaderMaterial({
     depthWrite: false,
@@ -118,9 +120,9 @@ const particlesMaterial = new THREE.ShaderMaterial({
 })
 
 const solidMaterial = new THREE.ShaderMaterial({
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    vertexColors: true,
+    // depthWrite: false,
+    // blending: THREE.AdditiveBlending,
+    // vertexColors: true,
     side: THREE.DoubleSide,
     vertexShader: solidVertexShader,
     fragmentShader: solidFragmentShader,
@@ -136,6 +138,26 @@ const solidMaterial = new THREE.ShaderMaterial({
         uBasevectorX: { value: basevectorX },
         uBasevectorY: { value: basevectorY },
         uTexture : { value: segmentTexture } 
+    }
+})
+
+const maskMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    side: THREE.DoubleSide,
+    vertexShader: solidVertexShader,
+    fragmentShader: maskFragmentShader,
+    uniforms:
+    {
+        uFlatten: { value: parameters.flatten },
+        uFlip: { value: parameters.flip },
+        uTime: { value: 0 },
+        uArea: { value: data.area },
+        uCenter: { value: center },
+        uNormal: { value: normal },
+        uTifsize: { value: tifsize },
+        uBasevectorX: { value: basevectorX },
+        uBasevectorY: { value: basevectorY },
+        uTexture : { value: maskTexture }
     }
 })
 
@@ -157,6 +179,11 @@ function updateUniforms() {
     solidMaterial.uniforms.uBasevectorX.value = basevectorX.clone().applyMatrix4(matrix);
     solidMaterial.uniforms.uBasevectorY.value = basevectorY.clone().applyMatrix4(matrix);
 
+    maskMaterial.uniforms.uFlatten.value = parameters.flatten
+    maskMaterial.uniforms.uFlip.value = parameters.flip
+    maskMaterial.uniforms.uBasevectorX.value = basevectorX.clone().applyMatrix4(matrix);
+    maskMaterial.uniforms.uBasevectorY.value = basevectorY.clone().applyMatrix4(matrix);
+
     if (parameters.point) { particles.visible = true; solid.visible = false; }
     if (!parameters.point) { particles.visible = false; solid.visible = true; }
 }
@@ -173,6 +200,11 @@ new OBJLoader().load('segment.obj', function (object) {
     solid.position.sub(shift)
     solid.scale.set(scale, scale, scale)
     scene.add(solid)
+
+    const maskMesh = new THREE.Mesh(solid.children[0].geometry, maskMaterial)
+    maskMesh.position.sub(shift)
+    maskMesh.scale.set(scale, scale, scale)
+    scene.add(maskMesh)
 
     const particlesGeometry = new THREE.BufferGeometry()
     particlesGeometry.attributes.position = solid.children[0].geometry.attributes.position
