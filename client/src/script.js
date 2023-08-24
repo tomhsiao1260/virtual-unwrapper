@@ -27,6 +27,13 @@ const parameters = {
     point_size: 5.0,
     flip: true,
     adjust: 0.2,
+    alpha: 0.9,
+    end: {
+        sc: 0.88,
+        r: 0.93,
+        g: 0.80,
+        b: 0.70,
+    }
 }
 
 const gui = new GUI()
@@ -35,6 +42,11 @@ gui.add(parameters, 'point').onChange(updateUniforms)
 gui.add(parameters, 'point_size').min(0).max(30).step(0.01).onChange(updateUniforms)
 gui.add(parameters, 'flip').onChange(updateUniforms)
 gui.add(parameters, 'adjust').min(0).max(1).step(0.01).onChange(updateUniforms)
+gui.add(parameters, 'alpha').min(0).max(1).step(0.01).onChange(updateUniforms)
+gui.add(parameters.end, 'sc').min(0.0).max(1.5).step(0.01).onChange(updateUniforms)
+gui.add(parameters.end, 'r').min(0).max(1).step(0.01).onChange(updateUniforms)
+gui.add(parameters.end, 'g').min(0).max(1).step(0.01).onChange(updateUniforms)
+gui.add(parameters.end, 'b').min(0).max(1).step(0.01).onChange(updateUniforms)
 
 const sizes = {
     width: window.innerWidth,
@@ -128,6 +140,8 @@ const solidMaterial = new THREE.ShaderMaterial({
     fragmentShader: solidFragmentShader,
     uniforms:
     {
+        uScEnd: { value: parameters.end.sc },
+        uColorEnd: { value: new THREE.Vector3(parameters.end.r, parameters.end.g, parameters.end.b) },
         uFlatten: { value: parameters.flatten },
         uFlip: { value: parameters.flip },
         uTime: { value: 0 },
@@ -148,6 +162,7 @@ const maskMaterial = new THREE.ShaderMaterial({
     fragmentShader: maskFragmentShader,
     uniforms:
     {
+        uAlpha: { value: 1.0 },
         uFlatten: { value: parameters.flatten },
         uFlip: { value: parameters.flip },
         uTime: { value: 0 },
@@ -178,7 +193,10 @@ function updateUniforms() {
     solidMaterial.uniforms.uFlip.value = parameters.flip
     solidMaterial.uniforms.uBasevectorX.value = basevectorX.clone().applyMatrix4(matrix);
     solidMaterial.uniforms.uBasevectorY.value = basevectorY.clone().applyMatrix4(matrix);
+    solidMaterial.uniforms.uScEnd.value = parameters.end.sc
+    solidMaterial.uniforms.uColorEnd.value.set(parameters.end.r, parameters.end.g, parameters.end.b)
 
+    maskMaterial.uniforms.uAlpha.value = parameters.alpha
     maskMaterial.uniforms.uFlatten.value = parameters.flatten
     maskMaterial.uniforms.uFlip.value = parameters.flip
     maskMaterial.uniforms.uBasevectorX.value = basevectorX.clone().applyMatrix4(matrix);
