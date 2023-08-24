@@ -84,7 +84,10 @@ def calc_metric(vertices, normals, totoal_area):
 
     # Save texture image
     tif_img = Image.open(tif_file)
-    tif_img.save(png_file, 'png')
+    tif_img = np.array(tif_img, dtype=np.float32)
+    tif_img /= 65535.0 / 255.0
+    tif_img = tif_img.astype(np.uint8)
+    Image.fromarray(tif_img).save(png_file, format='PNG')
 
     # Calculate bounding box
     distances = np.linalg.norm(vertices - mean_vertices, axis=1)
@@ -115,7 +118,7 @@ def calc_metric(vertices, normals, totoal_area):
 
     data = {
         'area': totoal_area,
-        'tifsize': tif_img.size,
+        'tifsize': (tif_img.shape[1], tif_img.shape[0]),
         'center': mean_vertices.tolist(),
         'normal': mean_normals.tolist(),
         'boundingbox': bounding_box.tolist(),

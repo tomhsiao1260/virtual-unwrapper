@@ -3,7 +3,7 @@ import GUI from 'lil-gui'
 import data from './segment.json'
 
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
 
 import maskFragmentShader from './shaders/mask/fragment.glsl'
 import solidVertexShader from './shaders/solid/vertex.glsl'
@@ -88,7 +88,7 @@ const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 
 camera.position.z = 1
 scene.add(camera)
 
-const controls = new OrbitControls(camera, canvas)
+const controls = new ArcballControls( camera, canvas, scene );
 controls.enableDamping = true
 
 const renderer = new THREE.WebGLRenderer({
