@@ -60,25 +60,9 @@ const uvTexture = new THREE.TextureLoader().load('20230702185753_r3_uv.png', ren
 const dTexture = new THREE.TextureLoader().load('20230702185753_r3_d.png', render)
 const labTexture = new THREE.TextureLoader().load('20230702185753_inklabels.png', render)
 
-const material = new Shader()
-posTexture.minFilter = THREE.NearestFilter
-posTexture.magFilter = THREE.NearestFilter
-material.uniforms.tPosition.value = posTexture
-
-uvTexture.minFilter = THREE.NearestFilter
-uvTexture.magFilter = THREE.NearestFilter
-material.uniforms.tUV.value = uvTexture
-
-dTexture.minFilter = THREE.NearestFilter
-dTexture.magFilter = THREE.NearestFilter
-material.uniforms.tDistance.value = dTexture
-
-labTexture.minFilter = THREE.NearestFilter
-labTexture.magFilter = THREE.NearestFilter
-material.uniforms.tLabel.value = labTexture
-
-const p1 = new THREE.Mesh(geometry, material)
-const p2 = new THREE.Mesh(geometry, material)
+const p1 = new THREE.Mesh(geometry, setMaterial())
+const p2 = new THREE.Mesh(geometry, setMaterial())
+const target = { mesh: p1 }
 
 const meshList = [ p1, p2 ]
 meshList.forEach((mesh) => scene.add(mesh))
@@ -87,11 +71,11 @@ meshList.forEach((mesh) => scene.add(mesh))
 const params = { flatten: 0, left: 0, right: 0, top: 0, bottom: 0 }
 
 const gui = new GUI()
-gui.add(params, 'flatten', 0, 1, 0.01).name('flatten').onChange(render)
-gui.add(params, 'left', 0, 1, 0.01).name('left').onChange(render)
-gui.add(params, 'right', 0, 1, 0.01).name('right').onChange(render)
-gui.add(params, 'top', 0, 1, 0.01).name('top').onChange(render)
-gui.add(params, 'bottom', 0, 1, 0.01).name('bottom').onChange(render)
+gui.add(params, 'flatten', 0, 1, 0.01).name('flatten').listen().onChange(render)
+gui.add(params, 'left', 0, 1, 0.01).name('left').listen().onChange(render)
+gui.add(params, 'right', 0, 1, 0.01).name('right').listen().onChange(render)
+gui.add(params, 'top', 0, 1, 0.01).name('top').listen().onChange(render)
+gui.add(params, 'bottom', 0, 1, 0.01).name('bottom').listen().onChange(render)
 
 // Renderer
 const canvas = document.querySelector('.webgl')
@@ -111,18 +95,49 @@ const drag = new DragControls([ ...meshList ], camera, canvas)
 drag.addEventListener('drag', render)
 drag.addEventListener('dragstart', () => { controls.enabled = false })
 drag.addEventListener('dragend', () => { controls.enabled = true })
+drag.addEventListener('dragstart', (e) => {
+    target.mesh = e.object
+    setParameters()
+})
 
 // Render
 function render() {
-    meshList.forEach((mesh, i) => {
-        mesh.visible = params[i + 1]
-        mesh.material.uniforms.uFlatten.value = params.flatten
-        mesh.material.uniforms.uLeft.value = params.left
-        mesh.material.uniforms.uRight.value = params.right
-        mesh.material.uniforms.uTop.value = params.top
-        mesh.material.uniforms.uBottom.value = params.bottom
-    })
+    target.mesh.material.uniforms.uFlatten.value = params.flatten
+    target.mesh.material.uniforms.uLeft.value = params.left
+    target.mesh.material.uniforms.uRight.value = params.right
+    target.mesh.material.uniforms.uTop.value = params.top
+    target.mesh.material.uniforms.uBottom.value = params.bottom
 
     renderer.render(scene, camera)
 }
 render()
+
+function setMaterial() {
+    const material = new Shader()
+    posTexture.minFilter = THREE.NearestFilter
+    posTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tPosition.value = posTexture
+
+    uvTexture.minFilter = THREE.NearestFilter
+    uvTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tUV.value = uvTexture
+
+    dTexture.minFilter = THREE.NearestFilter
+    dTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tDistance.value = dTexture
+
+    labTexture.minFilter = THREE.NearestFilter
+    labTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tLabel.value = labTexture
+
+    return material
+}
+
+function setParameters() {
+    params.flatten = target.mesh.material.uniforms.uFlatten.value
+    params.left = target.mesh.material.uniforms.uLeft.value
+    params.right = target.mesh.material.uniforms.uRight.value
+    params.top = target.mesh.material.uniforms.uTop.value
+    params.bottom = target.mesh.material.uniforms.uBottom.value
+}
+

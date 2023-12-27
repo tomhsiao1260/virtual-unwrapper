@@ -70,14 +70,14 @@ export class Shader extends ShaderMaterial {
           s += e_bottom * uBottom + e_bottom * e_top * (uBottom - uTop);
           s /= 1.0 - e_bottom - e_top + e_bottom * uBottom + e_top * uTop;
 
-          vec4 color = vec4(vUv, 1.0, 1.0);
-          // vec4 color = texture2D(tUV, vec2(r, s));
+          // vec4 color = vec4(vUv, 1.0, 1.0);
+          vec4 color = texture2D(tUV, vec2(r, s));
 
           // vec4 c = texture2D(tUV, vec2(r, s));
           // vec4 color = texture2D(tLabel, c.xy);
 
           // if (c.a < 0.01) discard;
-          // if (color.a < 0.01) discard;
+          if (color.a < 0.01) discard;
 
           gl_FragColor = color;
         }
