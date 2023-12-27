@@ -38,11 +38,7 @@ camera.lookAt(0, 0, 0)
 scene.add(camera)
 
 // Plane
-const textureWidth = 189
-const textureHeight = 1547
-const pSize = 0.15
-
-const geometry = new THREE.PlaneGeometry(pSize, pSize * textureHeight / textureWidth, 100, 100)
+const geometry = new THREE.PlaneGeometry(1, 1, 100, 100)
 const positions = geometry.getAttribute('position').array
 
 for (let i = 0; i < positions.length / 3; i++) {
@@ -55,20 +51,38 @@ for (let i = 0; i < positions.length / 3; i++) {
     positions[3 * i + 2] = yo
 }
 
-const posTexture = new THREE.TextureLoader().load('20230702185753.png', render)
-const uvTexture = new THREE.TextureLoader().load('20230702185753_r3_uv.png', render)
-const dTexture = new THREE.TextureLoader().load('20230702185753_r3_d.png', render)
-const labTexture = new THREE.TextureLoader().load('20230702185753_inklabels.png', render)
+const meshList = []
+const target = { mesh: null }
 
-const p1 = new THREE.Mesh(geometry, setMaterial())
-const p2 = new THREE.Mesh(geometry, setMaterial())
-const target = { mesh: p1 }
+async function init() {
+    const { segment } = await fetch('meta.json').then((res) => res.json())
 
-const meshList = [ p1, p2 ]
-meshList.forEach((mesh) => scene.add(mesh))
+    for (let i = 0; i < segment.length; i++) {
+        const { id, labels, positions, chunks } = segment[i]
+        const posTexture = await new THREE.TextureLoader().loadAsync(`${id}/${positions}`)
+        const labTexture = await new THREE.TextureLoader().loadAsync(`${id}/${labels}`)
+
+        for (let j = 0; j < chunks.length; j++) {
+            const { uv, d, width, height } = chunks[j]
+            const uvTexture = await new THREE.TextureLoader().loadAsync(`${id}/${uv}`)
+            const dTexture = await new THREE.TextureLoader().loadAsync(`${id}/${d}`)
+
+            const material = setMaterial(posTexture, labTexture, uvTexture, dTexture)
+            const mesh = new THREE.Mesh(geometry, material)
+            mesh.scale.set(width / height, 1, 1)
+
+            meshList.push(mesh)
+        }
+    }
+
+    meshList.forEach((mesh) => scene.add(mesh))
+    target.mesh = meshList[0]
+    render()
+}
+init()
 
 // GUI
-const params = { flatten: 0, left: 0, right: 0, top: 0, bottom: 0 }
+const params = { flatten: 1, left: 0, right: 0, top: 0, bottom: 0 }
 
 const gui = new GUI()
 gui.add(params, 'flatten', 0, 1, 0.01).name('flatten').listen().onChange(render)
@@ -91,7 +105,7 @@ controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
 controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
 controls.addEventListener('change', render)
 
-const drag = new DragControls([ ...meshList ], camera, canvas)
+const drag = new DragControls(meshList, camera, canvas)
 drag.addEventListener('drag', render)
 drag.addEventListener('dragstart', () => { controls.enabled = false })
 drag.addEventListener('dragend', () => { controls.enabled = true })
@@ -102,6 +116,8 @@ drag.addEventListener('dragstart', (e) => {
 
 // Render
 function render() {
+    if (!target.mesh) return
+
     target.mesh.material.uniforms.uFlatten.value = params.flatten
     target.mesh.material.uniforms.uLeft.value = params.left
     target.mesh.material.uniforms.uRight.value = params.right
@@ -112,11 +128,15 @@ function render() {
 }
 render()
 
-function setMaterial() {
+function setMaterial(posTexture, labTexture, uvTexture, dTexture) {
     const material = new Shader()
     posTexture.minFilter = THREE.NearestFilter
     posTexture.magFilter = THREE.NearestFilter
     material.uniforms.tPosition.value = posTexture
+
+    labTexture.minFilter = THREE.NearestFilter
+    labTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tLabel.value = labTexture
 
     uvTexture.minFilter = THREE.NearestFilter
     uvTexture.magFilter = THREE.NearestFilter
@@ -125,10 +145,6 @@ function setMaterial() {
     dTexture.minFilter = THREE.NearestFilter
     dTexture.magFilter = THREE.NearestFilter
     material.uniforms.tDistance.value = dTexture
-
-    labTexture.minFilter = THREE.NearestFilter
-    labTexture.magFilter = THREE.NearestFilter
-    material.uniforms.tLabel.value = labTexture
 
     return material
 }

@@ -11,7 +11,7 @@ export class Shader extends ShaderMaterial {
         tUV: { value: null },
         tDistance: { value: null },
         tLabel: { value: null },
-        uFlatten: { value: 0 },
+        uFlatten: { value: 1 },
         uLeft: { value: 0 },
         uRight: { value: 0 },
         uTop: { value: 0 },
