@@ -7,19 +7,32 @@ export class Shader extends ShaderMaterial {
       transparent: true,
 
       uniforms: {
-        tDiffuse: { value: null },
-        tEdge: { value: null },
+        tPosition: { value: null },
+        tUV: { value: null },
+        tDistance: { value: null },
+        tLabel: { value: null },
+        uFlatten: { value: 0 },
         uLeft: { value: 0 },
         uRight: { value: 0 },
+        uTop: { value: 0 },
+        uBottom: { value: 0 },
       },
 
       vertexShader: /* glsl */ `
-        uniform sampler2D tDiffuse;
+        #define PI 3.1415926535897932384626433832795
+
+        uniform sampler2D tPosition;
+        uniform sampler2D tUV;
+        uniform float uFlatten;
         varying vec2 vUv;
 
-        void main()
-        {
-          vec3 newPosition = position;
+        void main() {
+          vec3 o = vec3(0.5);
+          vec2 w = texture2D(tUV, vec2(uv.x, uv.y)).xy;
+          vec4 p = texture2D(tPosition, w);
+          vec3 pos3D = p.xyz - o;
+
+          vec3 newPosition = pos3D + uFlatten * (position - pos3D);
 
           vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
           vec4 viewPosition = viewMatrix * modelPosition;
@@ -31,24 +44,40 @@ export class Shader extends ShaderMaterial {
       `,
 
       fragmentShader: /* glsl */ `
-        uniform sampler2D tDiffuse;
-        uniform sampler2D tEdge;
+        uniform sampler2D tUV;
+        uniform sampler2D tDistance;
+        uniform sampler2D tLabel;
         uniform float uLeft;
         uniform float uRight;
+        uniform float uTop;
+        uniform float uBottom;
 
         varying vec2 vUv;
 
         void main() {
-          vec4 edgeColor = texture2D(tEdge, vec2(vUv.x, vUv.y));
+          vec4 distance = texture2D(tDistance, vec2(vUv.x, vUv.y));
 
-          float e_left = edgeColor.r;
-          float e_right = edgeColor.g;
+          float e_left = 1.0 - distance.r;
+          float e_right = 1.0 - distance.g;
+          float e_top = 1.0 - distance.b;
+          float e_bottom = 1.0 - distance.a;
 
           float r = (1.0 - e_left - e_right) * vUv.x;
           r += e_left * uLeft + e_left * e_right * (uLeft - uRight);
           r /= 1.0 - e_left - e_right + e_left * uLeft + e_right * uRight;
 
-          vec4 color = texture2D(tDiffuse, vec2(r, vUv.y));
+          float s = (1.0 - e_top - e_bottom) * vUv.y;
+          s += e_bottom * uBottom + e_bottom * e_top * (uBottom - uTop);
+          s /= 1.0 - e_bottom - e_top + e_bottom * uBottom + e_top * uTop;
+
+          vec4 color = vec4(vUv, 1.0, 1.0);
+          // vec4 color = texture2D(tUV, vec2(r, s));
+
+          // vec4 c = texture2D(tUV, vec2(r, s));
+          // vec4 color = texture2D(tLabel, c.xy);
+
+          // if (c.a < 0.01) discard;
+          // if (color.a < 0.01) discard;
 
           gl_FragColor = color;
         }
