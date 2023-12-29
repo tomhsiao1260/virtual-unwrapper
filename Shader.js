@@ -11,7 +11,8 @@ export class Shader extends ShaderMaterial {
         tUV: { value: null },
         tDistance: { value: null },
         tLabel: { value: null },
-        uFlatten: { value: 1 },
+        uWrapping: { value: 0 },
+        uWrapPosition: { value: 0 },
         uLeft: { value: 0 },
         uRight: { value: 0 },
         uTop: { value: 0 },
@@ -25,7 +26,8 @@ export class Shader extends ShaderMaterial {
 
         uniform sampler2D tPosition;
         uniform sampler2D tUV;
-        uniform float uFlatten;
+        uniform float uWrapping;
+        uniform float uWrapPosition;
         varying vec2 vUv;
 
         void main() {
@@ -39,7 +41,7 @@ export class Shader extends ShaderMaterial {
           // vec3 newPosition = pos3D + uFlatten * (position - pos3D);
 
           vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
-          modelPosition.xyz = pos3D + uFlatten * (modelPosition.xyz - pos3D);
+          // modelPosition.xyz = pos3D + uWrapping * (modelPosition.xyz - pos3D);
           vec4 viewPosition = viewMatrix * modelPosition;
           vec4 projectedPosition = projectionMatrix * viewPosition;
 

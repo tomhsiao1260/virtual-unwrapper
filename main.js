@@ -54,6 +54,7 @@ for (let i = 0; i < positions.length / 3; i++) {
 
 const meshList = []
 const target = { mesh: null }
+const gridList = []
 
 async function init() {
     const { segment, grid } = await fetch('meta.json').then((res) => res.json())
@@ -77,11 +78,12 @@ async function init() {
 
     let ds = 0
     let wp = 0
+    const h = 1576
 
     grid.forEach((w, i) => {
-        const h = 1576
         ds -= (w + wp) / 2 / h
         wp = w
+        gridList.push(ds + w / h / 2)
 
         const gridGeometry = new THREE.PlaneGeometry(1, 1, 1, 1)
         const gridMaterial = new Grid()
@@ -91,6 +93,8 @@ async function init() {
         grid.scale.set(w / h, 1.0, 1.0)
         scene.add(grid)
     })
+    gridList.push(ds - wp / h / 2)
+    gridList.push(ds - wp / h / 2)
 
     meshList.forEach((mesh) => scene.add(mesh))
     target.mesh = meshList[0]
@@ -99,10 +103,10 @@ async function init() {
 init()
 
 // GUI
-const params = { flatten: 1, left: 0, right: 0, top: 0, bottom: 0 }
+const params = { wrapping: 0, left: 0, right: 0, top: 0, bottom: 0 }
 
 const gui = new GUI()
-gui.add(params, 'flatten', 0, 1, 0.01).name('flatten').listen().onChange(render)
+gui.add(params, 'wrapping', 0, 3.5, 0.01).name('wrapping').listen().onChange(render)
 gui.add(params, 'left', 0, 1, 0.01).name('left').listen().onChange(render)
 gui.add(params, 'right', 0, 1, 0.01).name('right').listen().onChange(render)
 gui.add(params, 'top', 0, 1, 0.01).name('top').listen().onChange(render)
@@ -116,10 +120,10 @@ renderer.setSize(sizes.width, sizes.height)
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = false
-controls.screenSpacePanning = true
-controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
-controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
+// controls.enableDamping = false
+// controls.screenSpacePanning = true
+// controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
+// controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
 controls.addEventListener('change', render)
 
 const drag = new DragControls(meshList, camera, canvas)
@@ -138,11 +142,13 @@ drag.addEventListener('drag', () => {
 function render() {
     if (!target.mesh) return
 
-    target.mesh.material.uniforms.uFlatten.value = params.flatten
     target.mesh.material.uniforms.uLeft.value = params.left
     target.mesh.material.uniforms.uRight.value = params.right
     target.mesh.material.uniforms.uTop.value = params.top
     target.mesh.material.uniforms.uBottom.value = params.bottom
+
+    target.mesh.material.uniforms.uWrapping.value = params.wrapping
+    target.mesh.material.uniforms.uWrapPosition.value = getWrapPosition()
 
     renderer.render(scene, camera)
 }
@@ -170,10 +176,24 @@ function setMaterial(posTexture, labTexture, uvTexture, dTexture) {
 }
 
 function setParameters() {
-    params.flatten = target.mesh.material.uniforms.uFlatten.value
     params.left = target.mesh.material.uniforms.uLeft.value
     params.right = target.mesh.material.uniforms.uRight.value
     params.top = target.mesh.material.uniforms.uTop.value
     params.bottom = target.mesh.material.uniforms.uBottom.value
+}
+
+const mark = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+scene.add(mark)
+
+function getWrapPosition() {
+    if (!gridList.length) return 0
+
+    const f = params.wrapping * 2
+    const s = Math.floor(f)
+    const w = f - s
+    const pos = (1 - w) * gridList[s] + w * gridList[s + 1]
+
+    mark.position.x = pos
+    return pos
 }
 
