@@ -19,7 +19,9 @@ export class Shader extends ShaderMaterial {
       },
 
       vertexShader: /* glsl */ `
-        #define PI 3.1415926535897932384626433832795
+        #define scrollX 8096.0
+        #define scrollY 7888.0
+        #define scrollZ 14370.0
 
         uniform sampler2D tPosition;
         uniform sampler2D tUV;
@@ -30,11 +32,14 @@ export class Shader extends ShaderMaterial {
           vec3 o = vec3(0.5);
           vec2 w = texture2D(tUV, vec2(uv.x, uv.y)).xy;
           vec4 p = texture2D(tPosition, w);
-          vec3 pos3D = p.xyz - o;
+          vec3 s = vec3(scrollX, scrollY, scrollZ) / scrollZ;
+          vec3 pos3D = (p.xyz - o) * s;
 
-          vec3 newPosition = pos3D + uFlatten * (position - pos3D);
+          vec3 newPosition = position;
+          // vec3 newPosition = pos3D + uFlatten * (position - pos3D);
 
           vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
+          modelPosition.xyz = pos3D + uFlatten * (modelPosition.xyz - pos3D);
           vec4 viewPosition = viewMatrix * modelPosition;
           vec4 projectedPosition = projectionMatrix * viewPosition;
 

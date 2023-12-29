@@ -5,6 +5,7 @@ import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
 import { DragControls } from 'three/addons/controls/DragControls.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Shader } from './Shader'
+import { Grid } from './Grid'
 
 // Sizes
 const sizes = {
@@ -55,7 +56,7 @@ const meshList = []
 const target = { mesh: null }
 
 async function init() {
-    const { segment } = await fetch('meta.json').then((res) => res.json())
+    const { segment, grid } = await fetch('meta.json').then((res) => res.json())
 
     for (let i = 0; i < segment.length; i++) {
         const { id, labels, positions, chunks } = segment[i]
@@ -63,17 +64,33 @@ async function init() {
         const labTexture = await new THREE.TextureLoader().loadAsync(`${id}/${labels}`)
 
         for (let j = 0; j < chunks.length; j++) {
-            const { uv, d, width, height } = chunks[j]
+            const { uv, d, width, height, l, r } = chunks[j]
             const uvTexture = await new THREE.TextureLoader().loadAsync(`${id}/${uv}`)
             const dTexture = await new THREE.TextureLoader().loadAsync(`${id}/${d}`)
 
             const material = setMaterial(posTexture, labTexture, uvTexture, dTexture)
             const mesh = new THREE.Mesh(geometry, material)
             mesh.scale.set(width / height, 1, 1)
-
             meshList.push(mesh)
         }
     }
+
+    let ds = 0
+    let wp = 0
+
+    grid.forEach((w, i) => {
+        const h = 1576
+        ds -= (w + wp) / 2 / h
+        wp = w
+
+        const gridGeometry = new THREE.PlaneGeometry(1, 1, 1, 1)
+        const gridMaterial = new Grid()
+        const grid = new THREE.Mesh(gridGeometry, gridMaterial)
+        grid.rotation.set(Math.PI / 2, 0, 0)
+        grid.position.set(ds, -0.01, 0)
+        grid.scale.set(w / h, 1.0, 1.0)
+        scene.add(grid)
+    })
 
     meshList.forEach((mesh) => scene.add(mesh))
     target.mesh = meshList[0]
@@ -106,12 +123,15 @@ controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
 controls.addEventListener('change', render)
 
 const drag = new DragControls(meshList, camera, canvas)
-drag.addEventListener('drag', render)
-drag.addEventListener('dragstart', () => { controls.enabled = false })
-drag.addEventListener('dragend', () => { controls.enabled = true })
 drag.addEventListener('dragstart', (e) => {
+    controls.enabled = false
     target.mesh = e.object
     setParameters()
+})
+drag.addEventListener('dragend', () => { controls.enabled = true })
+drag.addEventListener('drag', () => {
+    target.mesh.position.y = 0
+    render()
 })
 
 // Render
