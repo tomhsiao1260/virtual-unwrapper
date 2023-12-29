@@ -31,8 +31,9 @@ window.addEventListener('resize', () =>
 const scene = new THREE.Scene()
 
 // Camera
+const v = 0.8
 const aspect = sizes.width / sizes.height
-const camera = new THREE.OrthographicCamera(-1 * aspect, 1 * aspect, 1, -1, 0.01, 100)
+const camera = new THREE.OrthographicCamera(-v * aspect, v * aspect, v, -v, 0.01, 100)
 camera.position.set(0, -3, 0)
 camera.up.set(0, 0, 1)
 camera.lookAt(0, 0, 0)
@@ -106,7 +107,7 @@ init()
 const params = { wrapping: 0, left: 0, right: 0, top: 0, bottom: 0 }
 
 const gui = new GUI()
-gui.add(params, 'wrapping', 0, 3.5, 0.01).name('wrapping').listen().onChange(render)
+gui.add(params, 'wrapping', 0, 3.5, 0.01).name('wrapping').listen().onChange(updateWrapping)
 gui.add(params, 'left', 0, 1, 0.01).name('left').listen().onChange(render)
 gui.add(params, 'right', 0, 1, 0.01).name('right').listen().onChange(render)
 gui.add(params, 'top', 0, 1, 0.01).name('top').listen().onChange(render)
@@ -147,12 +148,20 @@ function render() {
     target.mesh.material.uniforms.uTop.value = params.top
     target.mesh.material.uniforms.uBottom.value = params.bottom
 
-    target.mesh.material.uniforms.uWrapping.value = params.wrapping
-    target.mesh.material.uniforms.uWrapPosition.value = getWrapPosition()
-
     renderer.render(scene, camera)
 }
 render()
+
+function updateWrapping() {
+    const pos = getWrapPosition()
+
+    meshList.forEach((mesh) => {
+        mesh.material.uniforms.uWrapping.value = params.wrapping
+        mesh.material.uniforms.uWrapPosition.value = pos
+    })
+
+    render()
+}
 
 function setMaterial(posTexture, labTexture, uvTexture, dTexture) {
     const material = new Shader()
@@ -182,8 +191,12 @@ function setParameters() {
     params.bottom = target.mesh.material.uniforms.uBottom.value
 }
 
-const mark = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
-scene.add(mark)
+const c = 0.006
+const mark1 = new THREE.Mesh(new THREE.SphereGeometry(c, 10, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+const mark2 = new THREE.Mesh(new THREE.SphereGeometry(c, 10, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+mark1.position.set(0, 0, 0.5)
+mark2.position.set(0, 0, -0.5)
+scene.add(mark1)
 
 function getWrapPosition() {
     if (!gridList.length) return 0
@@ -193,7 +206,9 @@ function getWrapPosition() {
     const w = f - s
     const pos = (1 - w) * gridList[s] + w * gridList[s + 1]
 
-    mark.position.x = pos
+    mark1.position.x = pos
+    mark2.position.x = pos
+
     return pos
 }
 

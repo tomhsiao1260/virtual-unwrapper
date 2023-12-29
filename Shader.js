@@ -20,6 +20,8 @@ export class Shader extends ShaderMaterial {
       },
 
       vertexShader: /* glsl */ `
+        #define PI 3.1415926535897932384626433832795
+
         #define scrollX 8096.0
         #define scrollY 7888.0
         #define scrollZ 14370.0
@@ -30,18 +32,34 @@ export class Shader extends ShaderMaterial {
         uniform float uWrapPosition;
         varying vec2 vUv;
 
+        mat3 rotateZ(float theta) {
+            float c = cos(theta);
+            float s = sin(theta);
+
+            return mat3(
+                c, -s, 0.0,
+                s, c, 0.0,
+                0.0, 0.0, 1.0
+            );
+        }
+
         void main() {
           vec3 o = vec3(0.5);
+          vec3 s = vec3(scrollX, scrollY, scrollZ) / scrollZ;
           vec2 w = texture2D(tUV, vec2(uv.x, uv.y)).xy;
           vec4 p = texture2D(tPosition, w);
-          vec3 s = vec3(scrollX, scrollY, scrollZ) / scrollZ;
           vec3 pos3D = (p.xyz - o) * s;
 
-          vec3 newPosition = position;
-          // vec3 newPosition = pos3D + uFlatten * (position - pos3D);
+          pos3D *= rotateZ(uWrapping * 2.0 * PI);
+          pos3D.y += 0.05;
+          pos3D.x += uWrapPosition;
 
+          vec3 newPosition = position;
           vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
-          // modelPosition.xyz = pos3D + uWrapping * (modelPosition.xyz - pos3D);
+
+          float flatten = 1.0 - smoothstep(uWrapPosition - 0.02, uWrapPosition, modelPosition.x);
+          modelPosition.xyz = pos3D + flatten * (modelPosition.xyz - pos3D);
+
           vec4 viewPosition = viewMatrix * modelPosition;
           vec4 projectedPosition = projectionMatrix * viewPosition;
 
