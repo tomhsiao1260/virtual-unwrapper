@@ -107,6 +107,7 @@ async function init() {
             mesh.userData.segID = segID
             mesh.userData.id = id
             mesh.userData.startPos = mesh.position.clone()
+            mesh.userData.originPosX = mesh.position.x
             meshList.push(mesh)
 
             mesh.scale.z = scale
@@ -189,7 +190,7 @@ drag.addEventListener('dragstart', (e) => {
     setParameters()
     render()
 })
-drag.addEventListener('dragend', () => {
+drag.addEventListener('dragend', (e) => {
     controls.enabled = true
 
     meshList.forEach((mesh) => {
@@ -198,6 +199,8 @@ drag.addEventListener('dragend', () => {
         mesh.userData.startPos.y = mesh.position.y
         mesh.userData.startPos.z = mesh.position.z
     })
+
+    target.mesh.userData.originPosX = target.mesh.position.x
 })
 drag.addEventListener('drag', (e) => {
     target.mesh.position.y = -2 * st
@@ -242,6 +245,10 @@ function updateWrapping() {
     meshList.forEach((mesh) => {
         mesh.material.uniforms.uWrapping.value = params.wrapping
         mesh.material.uniforms.uWrapPosition.value = pos
+
+        // temporarily fix of a weird shader position out of camera rendering bug
+        const t = (mesh.userData.originPosX - 0.5) < pos
+        mesh.position.x = t ? mesh.userData.originPosX : pos + 1.0
     })
     mark.position.x = pos
     camera.position.x = pos + cameraShift
