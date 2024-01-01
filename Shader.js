@@ -105,6 +105,7 @@ export class Shader extends ShaderMaterial {
           if (color.a < 0.01) discard;
 
           gl_FragColor = color;
+          gl_FragColor.a = 0.93;
         }
       `
     });

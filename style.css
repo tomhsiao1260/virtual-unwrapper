@@ -19,3 +19,8 @@ html
     height: 100%;
     background: #000000;
 }
+
+.lil-gui { 
+    --width: 600px;
+    --name-width: 15%;
+}

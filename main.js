@@ -28,11 +28,12 @@ const scene = new THREE.Scene()
 
 // Camera
 const v = 0.65
+const cameraShift = -0.5
 const aspect = sizes.width / sizes.height
 const camera = new THREE.OrthographicCamera(-v * aspect, v * aspect, v, -v, 0.01, 100)
-camera.position.set(0, -3, 0)
+camera.position.set(cameraShift, -3, 0)
 camera.up.set(0, 0, 1)
-camera.lookAt(0, 0, 0)
+camera.lookAt(cameraShift, 0, 0)
 scene.add(camera)
 
 // Plane
@@ -53,6 +54,7 @@ for (let i = 0; i < positions.length / 3; i++) {
 const meshList = []
 const target = { mesh: null }
 const gridList = []
+const st = 0.02
 
 async function init() {
     const { segment, grid: g } = await fetch('meta.json').then((res) => res.json())
@@ -61,8 +63,11 @@ async function init() {
     let wp = 0
     const h = 1576
 
-    for (let i = 0; i < g.length; i++) {
-        const w = g[i]
+    // for (let i = 0; i < g.length; i++) {
+    //     const w = g[i]
+    for (let i = 0; i < 53; i++) {
+        // this parts need to recaculate in the future
+        const w = 160 + (308 - 160) * (i / 52)
         ds -= (w + wp) / 2 / h
         wp = w
         gridList.push(ds + w / h / 2)
@@ -71,7 +76,7 @@ async function init() {
         const gridMaterial = new Grid()
         const grid = new THREE.Mesh(gridGeometry, gridMaterial)
         grid.rotation.set(Math.PI / 2, 0, 0)
-        grid.position.set(ds, -0.1, 0)
+        grid.position.set(ds, 0, 0)
         grid.scale.set(w / h, 1.0, 1.0)
         scene.add(grid)
     }
@@ -79,7 +84,7 @@ async function init() {
 
     // for (let i = 1; i < segment.length; i++) {
     for (let i = 0; i < segment.length; i++) {
-        const { id: segID, labels, positions, normals, chunks } = segment[i]
+        const { id: segID, labels, positions, normals, scale, offset, chunks } = segment[i]
         const posTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${positions}`)
         const normalTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${normals}`)
         // const labTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${labels}`)
@@ -90,14 +95,26 @@ async function init() {
             const uvTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${uv}`)
             const dTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${d}`)
 
+            let pos = getWrapPosition(id + 0.5)
+            // left & right edge rectangle position handling
+            if(j === 0) pos = gridList[id + 1] + (width / 2 - l) / height
+            if(j === chunks.length - 1) pos = gridList[id] - (width / 2 - r) / height
+
             const material = setMaterial(posTexture, labTexture, uvTexture, dTexture)
             const mesh = new THREE.Mesh(geometry, material)
             mesh.scale.set(width / height, 1, 1)
-            mesh.position.set(getWrapPosition(id + 0.5), 0, 0)
+            mesh.position.set(pos, st, 0)
             mesh.userData.segID = segID
             mesh.userData.id = id
             mesh.userData.startPos = mesh.position.clone()
             meshList.push(mesh)
+
+            mesh.scale.z = scale
+            // fit width into the grid
+            if (j !== 0 && j !== chunks.length - 1) {
+                mesh.scale.x = (l + r + 4) / height + Math.abs(gridList[id + 1] - gridList[id])
+            }
+            mesh.position.z = offset
         }
     }
 
@@ -108,15 +125,16 @@ async function init() {
 init()
 
 // GUI
-const params = { wrapping: 0, scale: 1, left: 0, right: 0, top: 0, bottom: 0 }
+const params = { wrapping: 0, scale: 1, offset: 0, left: 0, right: 0, top: 0, bottom: 0 }
 
 const gui = new GUI()
-gui.add(params, 'wrapping', 0, 12.99, 0.01).name('wrapping').listen().onChange(updateWrapping)
-gui.add(params, 'scale', 0, 1, 0.01).name('scale').listen().onChange(updateScaling)
-gui.add(params, 'left', 0, 1, 0.01).name('left').listen().onChange(render)
-gui.add(params, 'right', 0, 1, 0.01).name('right').listen().onChange(render)
-gui.add(params, 'top', 0, 1, 0.01).name('top').listen().onChange(render)
-gui.add(params, 'bottom', 0, 1, 0.01).name('bottom').listen().onChange(render)
+gui.add(params, 'wrapping', 0, 52.99, 0.01).name('wrapping').listen().onChange(updateWrapping)
+// gui.add(params, 'scale', 0, 1, 0.01).name('scale').listen().onChange(updateTransfer)
+// gui.add(params, 'offset', -0.5, 0.5, 0.01).name('offset').listen().onChange(updateTransfer)
+// gui.add(params, 'left', 0, 1, 0.01).name('left').listen().onChange(render)
+// gui.add(params, 'right', 0, 1, 0.01).name('right').listen().onChange(render)
+// gui.add(params, 'top', 0, 1, 0.01).name('top').listen().onChange(render)
+// gui.add(params, 'bottom', 0, 1, 0.01).name('bottom').listen().onChange(render)
 
 // Renderer
 const canvas = document.querySelector('.webgl')
@@ -128,19 +146,24 @@ renderer.setSize(sizes.width, sizes.height)
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = false
 controls.screenSpacePanning = true
+controls.target.x = camera.position.x
 controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
 controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
 controls.addEventListener('change', render)
+controls.update()
 
 const keyboard = { space: false, shift: false }
 window.addEventListener('keydown', (e) => {
+    if (event.repeat) return
     if (e.which === 32) keyboard.space = true
     if (e.which === 16) keyboard.shift = true
 
     if (e.which === 32) {
         controls.mouseButtons = { LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN }
         controls.touches = { ONE: TOUCH.ROTATE, TWO: TOUCH.PAN }
-        camera.lookAt(camera.position.x, 0, 0)
+        controls.target.x = camera.position.x
+        controls.update()
+        // camera.lookAt(camera.position.x, 0, 0)
     }
 })
 window.addEventListener('keyup', (e) => {
@@ -156,8 +179,8 @@ window.addEventListener('keyup', (e) => {
 const drag = new DragControls(meshList, camera, canvas)
 drag.addEventListener('dragstart', (e) => {
     meshList.forEach((mesh) => {
-        if (target.mesh.userData.segID === mesh.userData.segID) mesh.position.y = 0
-        if (e.object.userData.segID === mesh.userData.segID) mesh.position.y = -0.05
+        if (target.mesh.userData.segID === mesh.userData.segID) mesh.position.y = st
+        if (e.object.userData.segID === mesh.userData.segID) mesh.position.y = -st
     })
 
     controls.enabled = false
@@ -177,7 +200,7 @@ drag.addEventListener('dragend', () => {
     })
 })
 drag.addEventListener('drag', (e) => {
-    target.mesh.position.y = -0.05
+    target.mesh.position.y = -2 * st
 
     if(keyboard.shift) {
         const deltaX = target.mesh.position.x - target.mesh.userData.startPos.x
@@ -210,7 +233,7 @@ render()
 
 const c = 0.006
 const mark = new THREE.Mesh(new THREE.SphereGeometry(c, 10, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
-mark.position.set(0, -0.1, 0.5)
+mark.position.set(0, 0, 0.5)
 scene.add(mark)
 
 function updateWrapping() {
@@ -221,16 +244,18 @@ function updateWrapping() {
         mesh.material.uniforms.uWrapPosition.value = pos
     })
     mark.position.x = pos
+    camera.position.x = pos + cameraShift
 
     render()
 }
 
-function updateScaling() {
+function updateTransfer() {
     const { segID } = target.mesh.userData
 
     meshList.forEach((mesh) => {
         if (segID !== mesh.userData.segID) return
         mesh.scale.z = params.scale
+        mesh.position.z = params.offset
     })
 
     render()
@@ -276,4 +301,6 @@ function getWrapPosition(wrapping) {
 
     return pos
 }
+
+
 
