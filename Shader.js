@@ -9,6 +9,7 @@ export class Shader extends ShaderMaterial {
       uniforms: {
         tPosition: { value: null },
         tUV: { value: null },
+        tSurface: { value: null },
         tDistance: { value: null },
         tLabel: { value: null },
         uWrapping: { value: 0 },
@@ -70,6 +71,7 @@ export class Shader extends ShaderMaterial {
 
       fragmentShader: /* glsl */ `
         uniform sampler2D tUV;
+        uniform sampler2D tSurface;
         uniform sampler2D tDistance;
         uniform sampler2D tLabel;
         uniform float uLeft;
@@ -95,14 +97,13 @@ export class Shader extends ShaderMaterial {
           s += e_bottom * uBottom + e_bottom * e_top * (uBottom - uTop);
           s /= 1.0 - e_bottom - e_top + e_bottom * uBottom + e_top * uTop;
 
-          // vec4 color = vec4(vUv, 1.0, 1.0);
-          vec4 color = texture2D(tUV, vec2(r, s));
+          vec4 c = texture2D(tUV, vec2(r, s));
 
-          // vec4 c = texture2D(tUV, vec2(r, s));
+          vec4 color = c;
+          // vec4 color = texture2D(tSurface, c.xy);
           // vec4 color = texture2D(tLabel, c.xy);
 
-          // if (c.a < 0.01) discard;
-          if (color.a < 0.01) discard;
+          if (c.a < 0.01) discard;
 
           gl_FragColor = color;
           gl_FragColor.a = 0.93;

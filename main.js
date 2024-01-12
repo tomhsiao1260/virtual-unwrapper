@@ -4,8 +4,10 @@ import { MOUSE, TOUCH } from 'three'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
 import { DragControls } from 'three/addons/controls/DragControls.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { TIFFLoader } from 'three/addons/loaders/TIFFLoader.js'
 import { Shader } from './Shader'
 import { Grid } from './Grid'
+import { Test } from './Test'
 
 // Sizes
 const sizes = {
@@ -37,7 +39,7 @@ camera.lookAt(cameraShift, 0, 0)
 scene.add(camera)
 
 // Plane
-const geometry = new THREE.PlaneGeometry(1, 1, 10, 10)
+const geometry = new THREE.PlaneGeometry(1, 1, 200, 2000)
 // const geometry = new THREE.PlaneGeometry(1, 1, 50, 350)
 const positions = geometry.getAttribute('position').array
 
@@ -65,9 +67,12 @@ async function init() {
 
     // for (let i = 0; i < g.length; i++) {
     //     const w = g[i]
-    for (let i = 0; i < 53; i++) {
+    for (let i = 0; i < 61; i++) {
         // this parts need to recaculate in the future
-        const w = 160 + (308 - 160) * (i / 52)
+        let w;
+        w = 130 + (308 - 130) * (i / 60)
+        // still can't fit well for the first one
+        if (i < 8) w = 100 + (130 - 100) * (i / 7)
         ds -= (w + wp) / 2 / h
         wp = w
         gridList.push(ds + w / h / 2)
@@ -82,11 +87,12 @@ async function init() {
     }
     gridList.push(ds - wp / h / 2)
 
-    // for (let i = 1; i < segment.length; i++) {
     for (let i = 0; i < segment.length; i++) {
-        const { id: segID, labels, positions, normals, scale, offset, chunks } = segment[i]
+    // for (let i = 0; i < 1; i++) {
+        const { id: segID, labels, positions, normals, texture, scale, offset, chunks } = segment[i]
         const posTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${positions}`)
         const normalTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${normals}`)
+        const surfTexture = await new TIFFLoader().loadAsync(`${segID}/${texture}`)
         // const labTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${labels}`)
         const labTexture = ''
 
@@ -100,7 +106,7 @@ async function init() {
             if(j === 0) pos = gridList[id + 1] + (width / 2 - l) / height
             if(j === chunks.length - 1) pos = gridList[id] - (width / 2 - r) / height
 
-            const material = setMaterial(posTexture, labTexture, uvTexture, dTexture)
+            const material = setMaterial(posTexture, normalTexture, labTexture, uvTexture, dTexture, surfTexture)
             const mesh = new THREE.Mesh(geometry, material)
             mesh.scale.set(width / height, 1, 1)
             mesh.position.set(pos, st, 0)
@@ -113,7 +119,9 @@ async function init() {
             mesh.scale.z = scale
             // fit width into the grid
             if (j !== 0 && j !== chunks.length - 1) {
-                mesh.scale.x = (l + r + 4) / height + Math.abs(gridList[id + 1] - gridList[id])
+                // this is a shifting bug
+                const sh = i ? 4 : 10
+                mesh.scale.x = (l + r + sh) / height + Math.abs(gridList[id + 1] - gridList[id])
             }
             mesh.position.z = offset
         }
@@ -123,7 +131,18 @@ async function init() {
     target.mesh = meshList[0]
     render()
 }
-init()
+// init()
+
+const testTexture = new THREE.TextureLoader().load('ok.png')
+const testG = new THREE.PlaneGeometry(1, 1, 1, 1)
+const testM = new Test()
+testM.uniforms.t.value = testTexture
+testTexture.minFilter = THREE.NearestFilter
+testTexture.magFilter = THREE.NearestFilter
+
+// const testMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 1, 1), new THREE.MeshBasicMaterial())
+const testMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), testM)
+scene.add(testMesh)
 
 // GUI
 const params = { wrapping: 0, scale: 1, offset: 0, left: 0, right: 0, top: 0, bottom: 0 }
@@ -223,12 +242,12 @@ drag.addEventListener('drag', (e) => {
 
 // Render
 function render() {
-    if (!target.mesh) return
+    // if (!target.mesh) return
 
-    target.mesh.material.uniforms.uLeft.value = params.left
-    target.mesh.material.uniforms.uRight.value = params.right
-    target.mesh.material.uniforms.uTop.value = params.top
-    target.mesh.material.uniforms.uBottom.value = params.bottom
+    // target.mesh.material.uniforms.uLeft.value = params.left
+    // target.mesh.material.uniforms.uRight.value = params.right
+    // target.mesh.material.uniforms.uTop.value = params.top
+    // target.mesh.material.uniforms.uBottom.value = params.bottom
 
     renderer.render(scene, camera)
 }
@@ -268,7 +287,7 @@ function updateTransfer() {
     render()
 }
 
-function setMaterial(posTexture, labTexture, uvTexture, dTexture) {
+function setMaterial(posTexture, normalTexture, labTexture, uvTexture, dTexture, surfTexture) {
     const material = new Shader()
     posTexture.minFilter = THREE.NearestFilter
     posTexture.magFilter = THREE.NearestFilter
@@ -280,13 +299,17 @@ function setMaterial(posTexture, labTexture, uvTexture, dTexture) {
         material.uniforms.tLabel.value = labTexture
     }
 
-    uvTexture.minFilter = THREE.NearestFilter
-    uvTexture.magFilter = THREE.NearestFilter
+    // uvTexture.minFilter = THREE.NearestFilter
+    // uvTexture.magFilter = THREE.NearestFilter
     material.uniforms.tUV.value = uvTexture
 
-    dTexture.minFilter = THREE.NearestFilter
-    dTexture.magFilter = THREE.NearestFilter
+    // dTexture.minFilter = THREE.NearestFilter
+    // dTexture.magFilter = THREE.NearestFilter
     material.uniforms.tDistance.value = dTexture
+
+    surfTexture.minFilter = THREE.NearestFilter
+    surfTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tSurface.value = surfTexture
 
     return material
 }
