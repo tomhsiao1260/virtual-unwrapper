@@ -79,6 +79,11 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(sizes.width, sizes.height)
 
+const c = 0.006
+const mark = new THREE.Mesh(new THREE.SphereGeometry(c, 10, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+mark.position.set(0, 0, 0.5)
+scene.add(mark)
+
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = false
@@ -86,7 +91,7 @@ controls.screenSpacePanning = true
 controls.target.x = camera.position.x
 controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
 controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
-controls.addEventListener('change', render)
+controls.addEventListener('change', updateControls)
 controls.update()
 
 // Render
@@ -95,21 +100,27 @@ function render() {
 }
 render()
 
-const c = 0.006
-const mark = new THREE.Mesh(new THREE.SphereGeometry(c, 10, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
-mark.position.set(0, 0, 0.5)
-scene.add(mark)
+function updateControls() {
+    const pos = getPosition(params.wrapping)
+    if (camera.position.x < pos + cameraShift) { render(); return }
 
-function updateWrapping() {
-    const pos = getWrapPosition(params.wrapping)
-
-    mark.position.x = pos
-    camera.position.x = pos + cameraShift
+    const tpos = Math.min(camera.position.x - cameraShift, 0)
+    mark.position.x = tpos
+    params.wrapping = getWrap(tpos).toFixed(2)
 
     render()
 }
 
-function getWrapPosition(wrapping) {
+function updateWrapping() {
+    const pos = getPosition(params.wrapping)
+    mark.position.x = pos
+    camera.position.x = Math.min(camera.position.x, pos + cameraShift)
+    controls.target.x = camera.position.x
+
+    render()
+}
+
+function getPosition(wrapping) {
     if (!gridList.length) return 0
 
     const f = wrapping
@@ -118,6 +129,18 @@ function getWrapPosition(wrapping) {
     const pos = (1 - w) * gridList[s] + w * gridList[s + 1]
 
     return pos
+}
+
+function getWrap(pos) {
+    if (!gridList.length) return 0
+
+    let s = 0
+    while (gridList[s + 1] > pos) { s++ }
+
+    const w = (pos - gridList[s]) / (gridList[s + 1] - gridList[s])
+    const wrapping = s + w
+
+    return wrapping
 }
 
 
