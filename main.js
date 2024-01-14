@@ -1,5 +1,8 @@
 import './style.css'
+import { Grid } from './Grid'
 import * as THREE from 'three'
+import { MOUSE, TOUCH } from 'three'
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Sizes
@@ -10,15 +13,11 @@ const sizes = {
 
 window.addEventListener('resize', () =>
 {
-    // Save sizes
     sizes.width = window.innerWidth
     sizes.height = window.innerHeight
 
-    // Update camera
     camera.aspect = sizes.width / sizes.height
     camera.updateProjectionMatrix()
-
-    // Update renderer
     renderer.setSize(sizes.width, sizes.height)
 })
 
@@ -26,13 +25,50 @@ window.addEventListener('resize', () =>
 const scene = new THREE.Scene()
 
 // Camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.z = 3
+const v = 0.65
+const cameraShift = -0.5
+const aspect = sizes.width / sizes.height
+const camera = new THREE.OrthographicCamera(-v * aspect, v * aspect, v, -v, 0.01, 100)
+camera.position.set(cameraShift, -3, 0)
+camera.up.set(0, 0, 1)
+camera.lookAt(cameraShift, 0, 0)
 scene.add(camera)
 
-// Test
-const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshNormalMaterial())
-scene.add(cube)
+const gridList = []
+
+async function init() {
+    const { segment } = await fetch('meta.json').then((res) => res.json())
+
+    let ds = 0
+    let wp = 0
+    const h = 1576
+
+    for (let i = 0; i < 53; i++) {
+        // this parts need to recaculate in the future
+        const w = 160 + (308 - 160) * (i / 52)
+        ds -= (w + wp) / 2 / h
+        wp = w
+        gridList.push(ds + w / h / 2)
+
+        const gridGeometry = new THREE.PlaneGeometry(1, 1, 1, 1)
+        const gridMaterial = new Grid()
+        const grid = new THREE.Mesh(gridGeometry, gridMaterial)
+        grid.rotation.set(Math.PI / 2, 0, 0)
+        grid.position.set(ds, 0, 0)
+        grid.scale.set(w / h, 1.0, 1.0)
+        scene.add(grid)
+    }
+    gridList.push(ds - wp / h / 2)
+
+    render()
+}
+init()
+
+// GUI
+const params = { wrapping: 0 }
+
+const gui = new GUI()
+gui.add(params, 'wrapping', 0, 52.99, 0.01).name('wrapping').listen().onChange(updateWrapping)
 
 // Renderer
 const canvas = document.querySelector('.webgl')
@@ -45,22 +81,44 @@ renderer.setSize(sizes.width, sizes.height)
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
-controls.target = new THREE.Vector3(0,0,0)
-controls.enableDamping = true
+controls.enableDamping = false
+controls.screenSpacePanning = true
+controls.target.x = camera.position.x
+controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
+controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
+controls.addEventListener('change', render)
+controls.update()
 
-// Tick
-const tick = () =>
-{
-    // Update
-    cube.rotation.y += 0.01
-
-    // Controls
-    controls.update()
-
-    // Render
+// Render
+function render() {
     renderer.render(scene, camera)
-
-    // Keep looping
-    window.requestAnimationFrame(tick)
 }
-tick()
+render()
+
+const c = 0.006
+const mark = new THREE.Mesh(new THREE.SphereGeometry(c, 10, 10), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+mark.position.set(0, 0, 0.5)
+scene.add(mark)
+
+function updateWrapping() {
+    const pos = getWrapPosition(params.wrapping)
+
+    mark.position.x = pos
+    camera.position.x = pos + cameraShift
+
+    render()
+}
+
+function getWrapPosition(wrapping) {
+    if (!gridList.length) return 0
+
+    const f = wrapping
+    const s = Math.floor(f)
+    const w = f - s  
+    const pos = (1 - w) * gridList[s] + w * gridList[s + 1]
+
+    return pos
+}
+
+
+
