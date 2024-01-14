@@ -1,7 +1,8 @@
 import './style.css'
-import { Grid } from './Grid'
 import * as THREE from 'three'
 import { MOUSE, TOUCH } from 'three'
+import { Shader } from './Shader'
+import { Grid } from './Grid'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
@@ -34,6 +35,21 @@ camera.up.set(0, 0, 1)
 camera.lookAt(cameraShift, 0, 0)
 scene.add(camera)
 
+// Plane
+const geometry = new THREE.PlaneGeometry(1, 1, 10, 10)
+const positions = geometry.getAttribute('position').array
+
+for (let i = 0; i < positions.length / 3; i++) {
+    const xo = positions[3 * i + 0]
+    const yo = positions[3 * i + 1]
+    const zo = positions[3 * i + 2]
+
+    positions[3 * i + 0] = xo
+    positions[3 * i + 1] = zo
+    positions[3 * i + 2] = yo
+}
+
+const meshList = []
 const gridList = []
 
 async function init() {
@@ -42,6 +58,7 @@ async function init() {
     let ds = 0
     let wp = 0
     const h = 1576
+    const st = 0.02
 
     for (let i = 0; i < 53; i++) {
         // this parts need to recaculate in the future
@@ -60,6 +77,39 @@ async function init() {
     }
     gridList.push(ds - wp / h / 2)
 
+    for (let i = 1; i < 2; i++) {
+        const { id: segID, positions, scale, offset, chunks } = segment[i]
+        const posTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${positions}`)
+
+        for (let j = 0; j < chunks.length; j++) {
+            const { id, uv, width, height, l, r } = chunks[j]
+            const uvTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${uv}`)
+
+            let pos = getPosition(id + 0.5)
+            // left & right edge rectangle position handling
+            if(j === 0) pos = gridList[id + 1] + (width / 2 - l) / height
+            if(j === chunks.length - 1) pos = gridList[id] - (width / 2 - r) / height
+
+            const material = setMaterial(posTexture, uvTexture)
+            const mesh = new THREE.Mesh(geometry, material)
+            mesh.scale.set(width / height, 1, 1)
+            mesh.position.set(pos, st, 0)
+            mesh.userData.segID = segID
+            mesh.userData.id = id
+            mesh.userData.startPos = mesh.position.clone()
+            mesh.userData.originPosX = mesh.position.x
+            meshList.push(mesh)
+
+            mesh.scale.z = scale
+            // fit width into the grid
+            if (j !== 0 && j !== chunks.length - 1) {
+                mesh.scale.x = (l + r + 4) / height + Math.abs(gridList[id + 1] - gridList[id])
+            }
+            mesh.position.z = offset
+        }
+    }
+
+    meshList.forEach((mesh) => scene.add(mesh))
     render()
 }
 init()
@@ -141,6 +191,19 @@ function getWrap(pos) {
     const wrapping = s + w
 
     return wrapping
+}
+
+function setMaterial(posTexture, uvTexture) {
+    const material = new Shader()
+    posTexture.minFilter = THREE.NearestFilter
+    posTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tPosition.value = posTexture
+
+    uvTexture.minFilter = THREE.NearestFilter
+    uvTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tUV.value = uvTexture
+
+    return material
 }
 
 
