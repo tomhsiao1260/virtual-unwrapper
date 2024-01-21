@@ -57,12 +57,12 @@ async function init() {
 
     let ds = 0
     let wp = 0
-    const h = 1576
+    const h = 1
     const st = 0.02
 
     for (let i = 0; i < 53; i++) {
         // this parts need to recaculate in the future
-        const w = 160 + (308 - 160) * (i / 52)
+        const w = (160 + (308 - 160) * (i / 52)) / 1576
         ds -= (w + wp) / 2 / h
         wp = w
         gridList.push(ds + w / h / 2)
@@ -86,13 +86,8 @@ async function init() {
             const uvTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${uv}`)
 
             let pos = getPosition(id + 0.5)
-            // left & right edge rectangle position handling
-            if(j === 0) pos = gridList[id + 1] + (width / 2 - l) / height
-            if(j === chunks.length - 1) pos = gridList[id] - (width / 2 - r) / height
-
             const material = setMaterial(posTexture, uvTexture)
             const mesh = new THREE.Mesh(geometry, material)
-            mesh.scale.set(width / height, 1, 1)
             mesh.position.set(pos, st, 0)
             mesh.userData.segID = segID
             mesh.userData.id = id
@@ -100,11 +95,23 @@ async function init() {
             mesh.userData.originPosX = mesh.position.x
             meshList.push(mesh)
 
+            const gridW = Math.abs(gridList[id + 1] - gridList[id])
             mesh.scale.z = scale
+
             // fit width into the grid
-            if (j !== 0 && j !== chunks.length - 1) {
-                mesh.scale.x = (l + r + 4) / height + Math.abs(gridList[id + 1] - gridList[id])
+            if (j === 0) {
+                pos = gridList[id + 1] + width / height * (0.5 - l / width) * 1.0
+                mesh.scale.x = width / height
+            } else if (j === chunks.length - 1) {
+                pos = gridList[id] - width / height * (0.5 - r / width) * 1.0
+                mesh.scale.x = width / height
+            } else {
+                const ea = (r + l) / width
+                const d = ea / (1 - ea)
+                pos += d * gridW * (r - l) / (r + l) / 2
+                mesh.scale.x = (1 + d * 1.00) * gridW
             }
+            mesh.position.set(pos, st, 0)
             mesh.position.z = offset
         }
     }
