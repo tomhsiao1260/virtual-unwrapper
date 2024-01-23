@@ -4,6 +4,7 @@ import { MOUSE, TOUCH } from 'three'
 import { Shader } from './Shader'
 import { Grid } from './Grid'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
+import { TIFFLoader } from 'three/addons/loaders/TIFFLoader.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Sizes
@@ -36,7 +37,7 @@ camera.lookAt(cameraShift, 0, 0)
 scene.add(camera)
 
 // Plane
-const geometry = new THREE.PlaneGeometry(1, 1, 10, 10)
+const geometry = new THREE.PlaneGeometry(1, 1, 100, 1000)
 const positions = geometry.getAttribute('position').array
 
 for (let i = 0; i < positions.length / 3; i++) {
@@ -78,15 +79,18 @@ async function init() {
     gridList.push(ds - wp / h / 2)
 
     for (let i = 1; i < 2; i++) {
-        const { id: segID, positions, scale, offset, chunks } = segment[i]
+        const { id: segID, positions, colors, scale, offset, chunks } = segment[i]
         const posTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${positions}`)
+        const possTexture = await new THREE.TextureLoader().loadAsync(`${segID}/s/${positions}`)
+        const colorTexture = await new TIFFLoader().loadAsync(`${segID}/${colors}`)
 
         for (let j = 0; j < chunks.length; j++) {
             const { id, uv, width, height, l, r } = chunks[j]
             const uvTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${uv}`)
+            const uvsTexture = await new THREE.TextureLoader().loadAsync(`${segID}/s/${uv}`)
 
             let pos = getPosition(id + 0.5)
-            const material = setMaterial(posTexture, uvTexture)
+            const material = setMaterial(posTexture, possTexture, uvTexture, uvsTexture, colorTexture)
             const mesh = new THREE.Mesh(geometry, material)
             mesh.position.set(pos, st, 0)
             mesh.userData.segID = segID
@@ -165,14 +169,24 @@ function updateControls() {
     mark.position.x = tpos
     params.wrapping = getWrap(tpos).toFixed(2)
 
+    meshList.forEach((mesh) => {
+        mesh.material.uniforms.uWrapping.value = params.wrapping
+        mesh.material.uniforms.uWrapPosition.value = pos
+    })
+
     render()
 }
 
 function updateWrapping() {
     const pos = getPosition(params.wrapping)
     mark.position.x = pos
-    camera.position.x = Math.min(camera.position.x, pos + cameraShift)
+    camera.position.x = pos + cameraShift
     controls.target.x = camera.position.x
+
+    meshList.forEach((mesh) => {
+        mesh.material.uniforms.uWrapping.value = params.wrapping
+        mesh.material.uniforms.uWrapPosition.value = pos
+    })
 
     render()
 }
@@ -200,15 +214,27 @@ function getWrap(pos) {
     return wrapping
 }
 
-function setMaterial(posTexture, uvTexture) {
+function setMaterial(posTexture, possTexture, uvTexture, uvsTexture, colorTexture) {
     const material = new Shader()
     posTexture.minFilter = THREE.NearestFilter
     posTexture.magFilter = THREE.NearestFilter
     material.uniforms.tPosition.value = posTexture
 
+    possTexture.minFilter = THREE.NearestFilter
+    possTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tPositions.value = possTexture
+
     uvTexture.minFilter = THREE.NearestFilter
     uvTexture.magFilter = THREE.NearestFilter
     material.uniforms.tUV.value = uvTexture
+
+    uvsTexture.minFilter = THREE.NearestFilter
+    uvsTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tUVs.value = uvsTexture
+
+    colorTexture.minFilter = THREE.NearestFilter
+    colorTexture.magFilter = THREE.NearestFilter
+    material.uniforms.tColor.value = colorTexture
 
     return material
 }
