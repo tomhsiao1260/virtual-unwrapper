@@ -38,7 +38,7 @@ camera.lookAt(cameraShift, 0, 0)
 scene.add(camera)
 
 // Plane
-const geometry = new THREE.PlaneGeometry(1, 1, 100, 1000)
+const geometry = new THREE.PlaneGeometry(1, 1, 100, 100)
 const positions = geometry.getAttribute('position').array
 
 for (let i = 0; i < positions.length / 3; i++) {
@@ -63,7 +63,8 @@ const st = 0.02
 async function init() {
     const { segment } = await fetch('meta.json').then((res) => res.json())
 
-    for (let i = 0; i < 53; i++) {
+    for (let i = 0; i < 27; i++) {
+    // for (let i = 0; i < 53; i++) {
         // this parts need to recaculate in the future
         const w = (160 + (308 - 160) * (i / 52)) / 1576
         ds -= (w + wp) / 2 / h
@@ -80,7 +81,7 @@ async function init() {
     }
     gridList.push(ds - wp / h / 2)
 
-    for (let i = 1; i < 2; i++) {
+    for (let i = 0; i < 4; i++) {
         const { id: segID, positions, colors, scale, offset, chunks } = segment[i]
         const posTexture = await new THREE.TextureLoader().loadAsync(`${segID}/${positions}`)
         const possTexture = await new THREE.TextureLoader().loadAsync(`${segID}/s/${positions}`)
@@ -97,8 +98,6 @@ async function init() {
             mesh.position.set(pos, st, 0)
             mesh.userData.segID = segID
             mesh.userData.id = id
-            mesh.userData.startPos = mesh.position.clone()
-            mesh.userData.originPosX = mesh.position.x
             meshList.push(mesh)
 
             const gridW = Math.abs(gridList[id + 1] - gridList[id])
@@ -119,6 +118,8 @@ async function init() {
             }
             mesh.position.set(pos, st, 0)
             mesh.position.z = offset
+            mesh.userData.startPos = mesh.position.clone()
+            mesh.userData.originPosX = mesh.position.x
         }
     }
 
@@ -129,10 +130,13 @@ async function init() {
 init()
 
 // GUI
-const params = { wrapping: 0 }
+const params = { wrapping: 0, scale: 1, offset: 0 }
 
 const gui = new GUI()
-gui.add(params, 'wrapping', 0, 52.99, 0.01).name('wrapping').listen().onChange(updateWrapping)
+gui.add(params, 'wrapping', 0, 26.99, 0.01).name('wrapping').listen().onChange(updateWrapping)
+// gui.add(params, 'wrapping', 0, 52.99, 0.01).name('wrapping').listen().onChange(updateWrapping)
+// gui.add(params, 'scale', 0, 1, 0.01).name('scale').listen().onChange(updateTransfer)
+// gui.add(params, 'offset', -0.5, 0.5, 0.01).name('offset').listen().onChange(updateTransfer)
 
 // Renderer
 const canvas = document.querySelector('.webgl')
@@ -195,17 +199,17 @@ function render() {
 render()
 
 function updateControls() {
-    const pos = getPosition(params.wrapping)
-    if (camera.position.x < pos + cameraShift) { render(); return }
+    // const pos = getPosition(params.wrapping)
+    // if (camera.position.x < pos + cameraShift) { render(); return }
 
-    const tpos = Math.min(camera.position.x - cameraShift, 0)
-    mark.position.x = tpos
-    params.wrapping = getWrap(tpos).toFixed(2)
+    // const tpos = Math.min(camera.position.x - cameraShift, 0)
+    // mark.position.x = tpos
+    // params.wrapping = getWrap(tpos).toFixed(2)
 
-    meshList.forEach((mesh) => {
-        mesh.material.uniforms.uWrapping.value = params.wrapping
-        mesh.material.uniforms.uWrapPosition.value = pos
-    })
+    // meshList.forEach((mesh) => {
+    //     mesh.material.uniforms.uWrapping.value = params.wrapping
+    //     mesh.material.uniforms.uWrapPosition.value = pos
+    // })
 
     render()
 }
@@ -219,6 +223,22 @@ function updateWrapping() {
     meshList.forEach((mesh) => {
         mesh.material.uniforms.uWrapping.value = params.wrapping
         mesh.material.uniforms.uWrapPosition.value = pos
+
+        // temporarily fix of a weird shader position out of camera rendering bug
+        const t = (mesh.userData.originPosX - 0.1) < pos
+        mesh.position.x = t ? mesh.userData.originPosX : pos + 1.0
+    })
+
+    render()
+}
+
+function updateTransfer() {
+    const { segID } = target.mesh.userData
+
+    meshList.forEach((mesh) => {
+        if (segID !== mesh.userData.segID) return
+        mesh.scale.z = params.scale
+        mesh.position.z = params.offset
     })
 
     render()
