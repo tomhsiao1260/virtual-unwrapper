@@ -5,6 +5,7 @@ import { Shader } from './Shader'
 import { Grid } from './Grid'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
 import { TIFFLoader } from 'three/addons/loaders/TIFFLoader.js'
+import { DragControls } from 'three/addons/controls/DragControls.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // Sizes
@@ -52,14 +53,15 @@ for (let i = 0; i < positions.length / 3; i++) {
 
 const meshList = []
 const gridList = []
+const target = { mesh: null }
+
+let ds = 0
+let wp = 0
+const h = 1
+const st = 0.02
 
 async function init() {
     const { segment } = await fetch('meta.json').then((res) => res.json())
-
-    let ds = 0
-    let wp = 0
-    const h = 1
-    const st = 0.02
 
     for (let i = 0; i < 53; i++) {
         // this parts need to recaculate in the future
@@ -121,6 +123,7 @@ async function init() {
     }
 
     meshList.forEach((mesh) => scene.add(mesh))
+    target.mesh = meshList[0]
     render()
 }
 init()
@@ -154,6 +157,36 @@ controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }
 controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.PAN }
 controls.addEventListener('change', updateControls)
 controls.update()
+
+// drag controls
+const drag = new DragControls(meshList, camera, canvas)
+drag.addEventListener('dragstart', (e) => {
+    meshList.forEach((mesh) => {
+        if (target.mesh.userData.segID === mesh.userData.segID) mesh.position.y = st
+        if (e.object.userData.segID === mesh.userData.segID) mesh.position.y = -st
+    })
+
+    controls.enabled = false
+    target.mesh = e.object
+
+    render()
+})
+drag.addEventListener('dragend', (e) => {
+    controls.enabled = true
+
+    meshList.forEach((mesh) => {
+        if(mesh.userData.segID !== target.mesh.userData.segID) return
+        mesh.userData.startPos.x = mesh.position.x
+        mesh.userData.startPos.y = mesh.position.y
+        mesh.userData.startPos.z = mesh.position.z
+    })
+
+    target.mesh.userData.originPosX = target.mesh.position.x
+})
+drag.addEventListener('drag', (e) => {
+    target.mesh.position.y = -2 * st
+    render()
+})
 
 // Render
 function render() {
